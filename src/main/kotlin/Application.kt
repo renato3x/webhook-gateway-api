@@ -4,11 +4,10 @@ import dev.renato3x.plugins.configureDatabases
 import dev.renato3x.plugins.configureSerialization
 import dev.renato3x.plugins.configureRouting
 import io.ktor.server.application.*
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
+import io.ktor.server.netty.EngineMain
 
-fun main() {
-    embeddedServer(Netty).start(wait = true)
+fun main(args: Array<String>) {
+    EngineMain.main(args)
 }
 
 fun Application.module() {
