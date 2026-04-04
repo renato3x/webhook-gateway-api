@@ -1,4 +1,4 @@
-package dev.renato3x
+package dev.renato3x.plugins
 
 import io.ktor.server.application.*
 import io.ktor.server.response.*
@@ -7,12 +7,8 @@ import io.ktor.server.routing.*
 fun Application.configureRouting() {
     routing {
         route("v1") {
-            get {
-                call.respond(
-                    mapOf(
-                        "message" to "Hello World"
-                    )
-                )
+            get("ping") {
+                call.respondText("pong")
             }
         }
     }

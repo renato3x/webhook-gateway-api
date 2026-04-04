@@ -1,4 +1,4 @@
-package dev.renato3x
+package dev.renato3x.plugins
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
