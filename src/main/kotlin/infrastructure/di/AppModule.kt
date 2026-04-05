@@ -15,5 +15,5 @@ val appModule = module {
     single<CreateUserUseCase> { CreateUserUseCaseImpl(get()) }
 
     single<EndpointRepository> { ExposedEndpointRepository() }
-    single<CreateEndpointUseCase> { CreateEndpointUseCaseImpl(get()) }
+    single<CreateEndpointUseCase> { CreateEndpointUseCaseImpl(get(), get()) }
 }

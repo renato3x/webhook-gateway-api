@@ -1,5 +1,7 @@
 package dev.renato3x.infrastructure.http.plugins
 
+import dev.renato3x.domain.exception.EndpointAlreadyExistsException
+import dev.renato3x.domain.exception.UserNotFoundException
 import dev.renato3x.domain.exception.UsernameAlreadyExistsException
 import dev.renato3x.infrastructure.http.dto.ErrorResponseDTO
 import dev.renato3x.infrastructure.http.exception.RequestException
@@ -21,6 +23,30 @@ fun Application.configureStatusPage() {
 
             call.respond(
                 HttpStatusCode.Conflict,
+                response,
+            )
+        }
+
+        exception<EndpointAlreadyExistsException> { call, cause ->
+            val response = ErrorResponseDTO(
+                error = cause.message!!,
+                statusCode = HttpStatusCode.Conflict.value,
+            )
+
+            call.respond(
+                HttpStatusCode.Conflict,
+                response,
+            )
+        }
+
+        exception<UserNotFoundException> { call, cause ->
+            val response = ErrorResponseDTO(
+                error = cause.message!!,
+                statusCode = HttpStatusCode.NotFound.value,
+            )
+
+            call.respond(
+                HttpStatusCode.NotFound,
                 response,
             )
         }

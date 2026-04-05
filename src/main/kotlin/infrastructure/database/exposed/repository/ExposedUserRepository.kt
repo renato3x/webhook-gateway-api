@@ -33,6 +33,16 @@ class ExposedUserRepository : UserRepository {
         return result?.toUser()
     }
 
+    override suspend fun findById(id: Int): User? {
+        val result = suspendTransaction {
+            UserTable.selectAll().where {
+                UserTable.id eq id
+            }.singleOrNull()
+        }
+
+        return result?.toUser()
+    }
+
     private fun ResultRow.toUser() = User(
         id = this[UserTable.id].value,
         username = this[UserTable.username],

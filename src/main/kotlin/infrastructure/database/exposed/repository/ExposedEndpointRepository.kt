@@ -2,19 +2,20 @@ package dev.renato3x.infrastructure.database.exposed.repository
 
 import dev.renato3x.domain.model.Endpoint
 import dev.renato3x.domain.port.out.EndpointRepository
+import dev.renato3x.domain.value.Url
 import dev.renato3x.infrastructure.database.exposed.table.EndpointTable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 
 class ExposedEndpointRepository : EndpointRepository {
     override suspend fun save(endpoint: Endpoint): Endpoint {
-        val id = transaction {
+        val id = suspendTransaction {
             EndpointTable.insertAndGetId {
-                it[url] = endpoint.url
+                it[url] = endpoint.url.value
                 it[nickname] = endpoint.nickname
                 it[userId] = endpoint.userId
             }
@@ -25,12 +26,12 @@ class ExposedEndpointRepository : EndpointRepository {
 
     override suspend fun findByUserIdAndUrl(
         userId: Int,
-        url: String
+        url: Url
     ): Endpoint? {
-        val endpoint = transaction {
+        val endpoint = suspendTransaction {
             EndpointTable.selectAll()
                 .where {
-                    (EndpointTable.userId eq userId) and (EndpointTable.url eq url)
+                    (EndpointTable.userId eq userId) and (EndpointTable.url eq url.value)
                 }
                 .singleOrNull()
         }
@@ -40,7 +41,7 @@ class ExposedEndpointRepository : EndpointRepository {
 
     private fun ResultRow.toEndpoint() = Endpoint(
         id = this[EndpointTable.id].value,
-        url = this[EndpointTable.url],
+        url = Url(this[EndpointTable.url]),
         nickname = this[EndpointTable.nickname],
         userId = this[EndpointTable.userId].value
     )
