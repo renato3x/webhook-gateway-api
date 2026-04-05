@@ -8,8 +8,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CreateEndpointRequestDTO(
     val url: String = "",
-    val nickname: String = "",
-    val userId: Int = 0,
+    val nickname: String = ""
 ) : Validatable {
     override fun validate(): List<String> {
         val errors = mutableListOf<String>()
@@ -29,11 +28,6 @@ data class CreateEndpointRequestDTO(
             Url(url)
         } catch (e: DomainException) {
             errors.add(e.message!!)
-        }
-
-        // user id validation
-        if (userId <= 0) {
-            errors.add("user_id must be greater than 0")
         }
 
         return errors

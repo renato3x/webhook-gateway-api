@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class ExposedUserRepository : UserRepository {
@@ -37,6 +38,16 @@ class ExposedUserRepository : UserRepository {
         val result = suspendTransaction {
             UserTable.selectAll().where {
                 UserTable.id eq id
+            }.singleOrNull()
+        }
+
+        return result?.toUser()
+    }
+
+    override suspend fun findByApiKey(apiKey: Uuid): User? {
+        val result = suspendTransaction {
+            UserTable.selectAll().where {
+                UserTable.apiKey eq apiKey
             }.singleOrNull()
         }
 
