@@ -11,7 +11,9 @@ A backend service built with **Kotlin** and **Ktor** designed to act as a reliab
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Domain Models](#domain-models)
+- [Value Objects](#value-objects)
 - [API Endpoints](#api-endpoints)
+- [Authentication](#authentication)
 - [Error Handling](#error-handling)
 - [Database](#database)
 - [Configuration](#configuration)
@@ -41,9 +43,9 @@ The project follows **Hexagonal Architecture** (also known as Ports & Adapters),
 Infrastructure → Application → Domain
 ```
 
-- **Domain** knows nothing about the outside world. It holds entities, domain exceptions, commands (intent objects), and port interfaces (contracts).
+- **Domain** knows nothing about the outside world. It holds entities, domain exceptions, commands (intent objects), value objects, and port interfaces (contracts).
 - **Application** implements the business logic via use cases. It only knows about the Domain layer — never about HTTP, databases, or frameworks.
-- **Infrastructure** is the outermost layer and handles all technical details: Ktor HTTP routes, Exposed ORM, Koin DI wiring, HikariCP connection pooling, and DTOs.
+- **Infrastructure** is the outermost layer and handles all technical details: Ktor HTTP routes, API Key authentication, Exposed ORM, Koin DI wiring, HikariCP connection pooling, and DTOs.
 
 The `Application.kt` file acts as the **Composition Root**, where all concrete implementations are wired together through dependency injection.
 
@@ -52,10 +54,13 @@ src/main/kotlin/
 ├── Application.kt                  ← Composition Root / Ktor entry point
 ├── application/
 │   └── usecase/                    ← Use case implementations (Port IN)
+│       ├── CreateUserUseCaseImpl.kt
+│       └── CreateEndpointUseCaseImpl.kt
 ├── domain/
 │   ├── command/                    ← Intent objects passed to use cases
 │   ├── exception/                  ← Domain-specific exceptions
 │   ├── model/                      ← Core business entities
+│   ├── value/                      ← Domain value objects (e.g., Url)
 │   └── port/
 │       ├── in/                     ← Driving ports (use case interfaces)
 │       └── out/                    ← Driven ports (repository/gateway interfaces)
@@ -69,9 +74,10 @@ src/main/kotlin/
     ├── di/
     │   └── AppModule.kt            ← Koin dependency injection module
     └── http/
-        ├── dto/                    ← Request/Response DTOs
+        ├── dto/                    ← Request/Response DTOs + Validatable interface
         ├── exception/              ← HTTP-layer exceptions
-        ├── plugins/                ← Ktor plugin configurations
+        ├── plugins/                ← Ktor plugin configurations (including auth)
+        ├── principal/              ← Ktor principal (UserPrincipal)
         └── routes/                 ← Ktor route handlers
 ```
 
@@ -90,6 +96,7 @@ src/main/kotlin/
 | Koin | 4.2.0 | Dependency injection |
 | kotlinx.serialization | 2.3.0 | JSON serialization |
 | Logback | 1.4.14 | Structured logging |
+| ktor-server-auth-api-key | 3.4.2 | API Key authentication plugin |
 
 ---
 
@@ -101,12 +108,13 @@ The `Application.module()` function is the Ktor entry point and bootstraps all p
 
 ```kotlin
 fun Application.module() {
-    configureDI()           // 1. Koin dependency injection
-    configureDatabases()    // 2. HikariCP + Exposed ORM + schema creation
-    configureSerialization()// 3. JSON with snake_case naming strategy
-    configureValidation()   // 4. Request body validation
-    configureStatusPage()   // 5. Global exception → HTTP response mapping
-    configureRouting()      // 6. HTTP routes registration
+    configureDI()             // 1. Koin dependency injection
+    configureDatabases()      // 2. HikariCP + Exposed ORM + schema creation
+    configureSerialization()  // 3. JSON with snake_case naming strategy
+    configureValidation()     // 4. Request body validation
+    configureStatusPage()     // 5. Global exception → HTTP response mapping
+    configureAuthentication() // 6. API Key authentication middleware
+    configureRouting()        // 7. HTTP routes registration
 }
 ```
 
@@ -116,14 +124,29 @@ Koin is used for IoC. The module wires interfaces to their concrete implementati
 
 ```kotlin
 val appModule = module {
-    single<UserRepository>    { ExposedUserRepository() }
-    single<CreateUserUseCase> { CreateUserUseCaseImpl(get()) }
+    single<UserRepository>        { ExposedUserRepository() }
+    single<CreateUserUseCase>     { CreateUserUseCaseImpl(get()) }
+
+    single<EndpointRepository>    { ExposedEndpointRepository() }
+    single<CreateEndpointUseCase> { CreateEndpointUseCaseImpl(get(), get()) }
 }
 ```
 
 ### JSON Serialization
 
-All JSON responses use **snake_case** naming strategy (e.g., `api_key` instead of `apiKey`), configured via `kotlinx.serialization`.
+All JSON responses use **snake_case** naming strategy (e.g., `api_key` instead of `apiKey`, `user_id` instead of `userId`), configured via `kotlinx.serialization`.
+
+### Request Validation
+
+All request DTOs implement the `Validatable` interface:
+
+```kotlin
+interface Validatable {
+    fun validate(): List<String>
+}
+```
+
+Ktor's `RequestValidation` plugin intercepts every incoming body of type `Validatable`, calls `validate()`, and automatically returns `400 Bad Request` with the error list if any rule fails.
 
 ---
 
@@ -135,7 +158,7 @@ Represents a registered API user.
 | Field | Type | Description |
 |---|---|---|
 | `id` | `Int?` | Auto-generated primary key |
-| `username` | `String` | Unique username (5–16 characters) |
+| `username` | `String` | Unique username (5–16 chars, alphanumeric + underscores only) |
 | `apiKey` | `Uuid` | Auto-generated UUID used for authentication |
 
 ### `Endpoint`
@@ -144,8 +167,8 @@ Represents a trusted destination URL registered by a user.
 | Field | Type | Description |
 |---|---|---|
 | `id` | `Int?` | Auto-generated primary key |
-| `url` | `String` | The destination URL |
-| `nickname` | `String` | A human-friendly label (e.g., `"Customer-API"`) |
+| `url` | `Url` | The destination URL (wrapped in the `Url` value object) |
+| `nickname` | `String` | A human-friendly label (6–30 characters) |
 | `userId` | `Int` | Foreign key to `User` |
 
 ### `WebhookDelivery`
@@ -159,6 +182,21 @@ Represents a queued webhook dispatch attempt.
 | `attempts` | `Int` | Number of delivery attempts (starts at `0`) |
 | `nextRetryAt` | `Instant?` | Timestamp for the next retry (Exponential Backoff) |
 | `status` | `WebhookDeliveryStatus` | `PENDING`, `SUCCESS`, or `FAILED` |
+
+---
+
+## Value Objects
+
+### `Url`
+An inline value class that wraps a `String` and enforces URL validity at the domain level. Validation rules:
+
+- Must not be blank.
+- Must be a syntactically valid URI (parseable by `java.net.URI`).
+- Scheme must be `http` or `https`.
+- Must have a non-blank host.
+- Must **not** point to local addresses (`localhost` or `127.0.0.1`).
+
+Any violation throws a `DomainException`, which is caught by the `CreateEndpointRequestDTO` validator and surfaced as a `400 Bad Request`.
 
 ---
 
@@ -188,7 +226,9 @@ Registers a new user and returns an `api_key` for authentication.
 
 **Validation rules:**
 - `username` must not be blank.
+- `username` must not contain spaces.
 - `username` must be between **5 and 16 characters**.
+- `username` must only contain **letters, numbers, and underscores** (`[a-zA-Z0-9_]+`).
 
 **Response:** `201 Created`
 ```json
@@ -203,6 +243,65 @@ Registers a new user and returns an `api_key` for authentication.
 |---|---|
 | `400 Bad Request` | Validation failed (blank username or invalid length) |
 | `409 Conflict` | Username already exists |
+
+---
+
+### `POST /v1/endpoints` 🔒
+Registers a trusted destination URL for the authenticated user.
+
+> **Requires authentication.** Send the API key in the `X-API-Key` header.
+
+**Request Body:**
+```json
+{
+  "url": "https://example.com/webhook",
+  "nickname": "My-Service"
+}
+```
+
+**Validation rules:**
+- `nickname` must not be blank.
+- `nickname` must be between **6 and 30 characters**.
+- `url` must be a valid `http` or `https` URL pointing to a non-local host.
+
+**Response:** `201 Created`
+```json
+{
+  "id": 1,
+  "url": "https://example.com/webhook",
+  "nickname": "My-Service",
+  "user_id": 42
+}
+```
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing/invalid `X-API-Key` header or validation failed |
+| `404 Not Found` | Authenticated user not found |
+| `409 Conflict` | This URL is already registered for this user |
+
+---
+
+## Authentication
+
+Protected routes use **API Key authentication** via the `ktor-server-auth-api-key` plugin.
+
+The API key must be sent in the **`X-API-Key`** request header:
+
+```http
+X-API-Key: 550e8400-e29b-41d4-a716-446655440000
+```
+
+**How it works:**
+1. The middleware reads the `X-API-Key` header value.
+2. It attempts to parse it as a `Uuid`. If parsing fails, it returns `400 Bad Request`.
+3. It queries `UserRepository.findByApiKey()` for a matching user.
+4. If a user is found, a `UserPrincipal(user)` is set as the call's principal and the request proceeds.
+5. If no user is found, it returns `400 Bad Request` with a `"Missing or invalid API key"` error.
+
+The `UserPrincipal` carries the full `User` domain object, making it available directly in protected route handlers via `call.principal<UserPrincipal>()`.
 
 ---
 
@@ -224,8 +323,10 @@ All errors are handled globally by Ktor's **StatusPages** plugin and return a co
 | Exception | HTTP Status | Description |
 |---|---|---|
 | `UsernameAlreadyExistsException` | `409 Conflict` | Username is already taken |
+| `EndpointAlreadyExistsException` | `409 Conflict` | URL already registered for this user |
+| `UserNotFoundException` | `404 Not Found` | User lookup by ID failed |
 | `RequestValidationException` | `400 Bad Request` | Request body failed validation rules |
-| `RequestException` | Configurable | Generic HTTP-layer error |
+| `RequestException` | Configurable | Generic HTTP-layer error with custom status and details |
 | `Throwable` (fallback) | `500 Internal Server Error` | Any unhandled exception |
 
 ---
@@ -332,9 +433,7 @@ The server will start on `http://0.0.0.0:8080`. The database tables are created 
 
 The following features are specified in `SPEC.md` and are yet to be implemented:
 
-- **`POST /v1/endpoints`** — Allow authenticated users to register trusted destination URLs. Requires `Authorization: Bearer <api_key>` header.
 - **`POST /v1/dispatch`** — Ingest a webhook payload. Validates the `endpoint_id` belongs to the authenticated user, persists a `PENDING` `WebhookDelivery`, and returns `202 Accepted` immediately.
 - **Background Worker** — A Kotlin Coroutine (`launch(Dispatchers.IO)`) that polls the database every 10 seconds for `PENDING` deliveries whose `next_retry_at` has passed, then forwards them via HTTP POST.
 - **Exponential Backoff Retry** — On failure, schedules the next retry as $NextRetry = CurrentTime + (2^{attempts}\ minutes)$, up to a maximum of **5 attempts** before marking the delivery as `FAILED`.
 - **Structured Logging** — Full lifecycle logs tracking each delivery from ingestion through every attempt to final success or failure.
-- **API Key Authentication** — A Ktor middleware (interceptor) to validate the `api_key` from the `Authorization` header on protected routes.
