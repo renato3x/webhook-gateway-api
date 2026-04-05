@@ -5,14 +5,12 @@ import dev.renato3x.infrastructure.http.dto.ErrorResponseDTO
 import dev.renato3x.infrastructure.http.exception.RequestException
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.plugins.requestvalidation.RequestValidationException
+import io.ktor.server.plugins.requestvalidation.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 
-@OptIn(ExperimentalSerializationApi::class)
 fun Application.configureStatusPage() {
     install(StatusPages) {
         exception<UsernameAlreadyExistsException> { call, cause ->

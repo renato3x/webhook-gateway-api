@@ -8,10 +8,13 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
+import org.koin.ktor.ext.inject
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
-fun Route.userRoutes(createUserUseCase: CreateUserUseCase) {
+fun Route.userRoutes() {
+    val createUserUseCase by inject<CreateUserUseCase>()
+
     route("users") {
         post {
             val dto = call.receive<CreateUserRequestDTO>()

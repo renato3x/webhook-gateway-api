@@ -4,6 +4,7 @@ val exposed_version: String by project
 val postgresql_version: String by project
 val hikaricp_version: String by project
 val ktor_version: String by project
+val koin_version: String by project
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -36,7 +37,9 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:${ktor_version}")
     implementation("org.postgresql:postgresql:$postgresql_version")
     implementation("com.zaxxer:HikariCP:$hikaricp_version")
-    implementation("io.ktor:ktor-server-request-validation:${ktor_version}")
+    implementation("io.ktor:ktor-server-request-validation:$ktor_version")
+    implementation("io.insert-koin:koin-core:${koin_version}")
+    implementation("io.insert-koin:koin-ktor:$koin_version")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
