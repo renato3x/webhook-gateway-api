@@ -12,7 +12,11 @@ object ExposedDatabaseSetup {
     fun init(dataSource: HikariDataSource) {
         Database.connect(dataSource)
         transaction {
-            SchemaUtils.create(UserTable, EndpointTable, WebhookDeliveryTable)
+            SchemaUtils.create(
+                UserTable,
+                EndpointTable,
+                WebhookDeliveryTable
+            )
         }
     }
 }
