@@ -5,6 +5,7 @@ import dev.renato3x.domain.exception.UsernameAlreadyExistsException
 import dev.renato3x.domain.port.`in`.CreateUserUseCase
 import dev.renato3x.infrastructure.http.dto.CreateUserRequestDTO
 import dev.renato3x.infrastructure.http.dto.CreateUserResponseDTO
+import dev.renato3x.infrastructure.http.exception.InvalidRequestException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -17,10 +18,10 @@ import kotlin.uuid.ExperimentalUuidApi
 fun Route.userRoutes(createUserUseCase: CreateUserUseCase) {
     route("users") {
         post {
-            val dto = call.receive<CreateUserRequestDTO>()
-            val command = CreateUserCommand(dto.username)
-
             try {
+                val dto = call.receive<CreateUserRequestDTO>()
+                dto.validate()
+                val command = CreateUserCommand(dto.username)
                 val user = createUserUseCase.execute(command)
                 val response = CreateUserResponseDTO(user.apiKey)
                 call.respond(
@@ -30,6 +31,11 @@ fun Route.userRoutes(createUserUseCase: CreateUserUseCase) {
             } catch (e: UsernameAlreadyExistsException) {
                 call.respond(
                     HttpStatusCode.Conflict,
+                    mapOf("error" to e.message)
+                )
+            } catch (e: InvalidRequestException) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
                     mapOf("error" to e.message)
                 )
             } catch (_: Exception) {
