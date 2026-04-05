@@ -3,8 +3,8 @@ package dev.renato3x.infrastructure.http.routes
 import dev.renato3x.domain.command.CreateEndpointCommand
 import dev.renato3x.domain.port.`in`.CreateEndpointUseCase
 import dev.renato3x.domain.value.Url
-import dev.renato3x.infrastructure.http.dto.CreateEndpointRequestDTO
-import dev.renato3x.infrastructure.http.dto.CreateEndpointResponseDTO
+import dev.renato3x.infrastructure.http.dto.endpoint.CreateEndpointRequestDTO
+import dev.renato3x.infrastructure.http.dto.endpoint.CreateEndpointResponseDTO
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond

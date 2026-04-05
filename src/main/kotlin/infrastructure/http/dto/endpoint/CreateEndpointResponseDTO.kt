@@ -1,4 +1,4 @@
-package dev.renato3x.infrastructure.http.dto
+package dev.renato3x.infrastructure.http.dto.endpoint
 
 import kotlinx.serialization.Serializable
 

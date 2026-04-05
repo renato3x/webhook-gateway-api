@@ -1,7 +1,8 @@
-package dev.renato3x.infrastructure.http.dto
+package dev.renato3x.infrastructure.http.dto.endpoint
 
 import dev.renato3x.domain.exception.DomainException
 import dev.renato3x.domain.value.Url
+import dev.renato3x.infrastructure.http.dto.Validatable
 import kotlinx.serialization.Serializable
 
 @Serializable
