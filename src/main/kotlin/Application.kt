@@ -8,6 +8,7 @@ import dev.renato3x.infrastructure.http.plugins.configureDatabases
 import dev.renato3x.infrastructure.http.plugins.configureSerialization
 import dev.renato3x.infrastructure.http.plugins.configureRouting
 import dev.renato3x.infrastructure.http.plugins.configureStatusPage
+import dev.renato3x.infrastructure.http.plugins.configureValidation
 import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 
@@ -18,6 +19,7 @@ fun main(args: Array<String>) {
 fun Application.module() {
     configureDatabases()
     configureSerialization()
+    configureValidation()
     configureStatusPage()
 
     val userRepository: UserRepository = ExposedUserRepository()

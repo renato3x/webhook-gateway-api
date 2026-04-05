@@ -36,6 +36,7 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:${ktor_version}")
     implementation("org.postgresql:postgresql:$postgresql_version")
     implementation("com.zaxxer:HikariCP:$hikaricp_version")
+    implementation("io.ktor:ktor-server-request-validation:${ktor_version}")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }

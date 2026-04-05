@@ -1,6 +1,7 @@
 package dev.renato3x.infrastructure.http.dto
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -8,5 +9,6 @@ import kotlin.time.Instant
 data class ErrorResponseDTO(
     val error: String,
     val statusCode: Int,
-    val timestamp: Instant = Clock.System.now()
+    val timestamp: Instant = Clock.System.now(),
+    val details: Map<String, JsonElement> = emptyMap(),
 )
