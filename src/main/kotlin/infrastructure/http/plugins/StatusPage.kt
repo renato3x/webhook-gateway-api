@@ -45,6 +45,7 @@ fun Application.configureStatusPage() {
             val response = ErrorResponseDTO(
                 error = cause.message!!,
                 statusCode = cause.statusCode.value,
+                details = cause.details
             )
 
             call.respond(

@@ -9,15 +9,7 @@ import io.ktor.server.plugins.requestvalidation.ValidationResult
 fun Application.configureValidation() {
     install(RequestValidation) {
         validate<CreateUserRequestDTO> { dto ->
-            val errors = mutableListOf<String>()
-
-            if (dto.username.isBlank()) {
-                errors.add("username must not be blank")
-            }
-
-            if (dto.username.length !in 5..16) {
-                errors.add("username must be between 5 and 16 characters")
-            }
+            val errors = dto.validate()
 
             if (errors.isEmpty()) {
                 ValidationResult.Valid
