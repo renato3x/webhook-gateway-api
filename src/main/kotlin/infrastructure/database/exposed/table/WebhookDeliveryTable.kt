@@ -10,4 +10,5 @@ object WebhookDeliveryTable : IntIdTable("webhook_deliveries") {
     val attempts = integer("attempts").default(0)
     val nextRetryAt = datetime("next_retry_at").nullable()
     val status = enumeration("status", WebhookDeliveryStatus::class)
+        .default(WebhookDeliveryStatus.PENDING)
 }

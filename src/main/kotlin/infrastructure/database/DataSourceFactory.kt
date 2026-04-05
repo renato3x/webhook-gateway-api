@@ -12,13 +12,13 @@ object DataSourceFactory {
         val username = config.property("hikari.username").getString()
         val password = config.property("hikari.password").getString()
         val maximumPoolSize = config.property("hikari.maximumPoolSize").getString().toInt()
-        val config = HikariConfig().apply {
+        val dataSourceConfig = HikariConfig().apply {
             this.driverClassName = driverClassName
             this.jdbcUrl = jdbcUrl
             this.username = username
             this.password = password
             this.maximumPoolSize = maximumPoolSize
         }
-        return HikariDataSource(config)
+        return HikariDataSource(dataSourceConfig)
     }
 }
