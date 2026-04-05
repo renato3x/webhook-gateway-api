@@ -1,23 +1,11 @@
-package dev.renato3x.database
+package dev.renato3x.infrastructure.database
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import dev.renato3x.model.Endpoints
-import dev.renato3x.model.Users
-import io.ktor.server.config.*
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.SchemaUtils
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import io.ktor.server.config.ApplicationConfig
 
-object DatabaseFactory {
-    fun init(config: ApplicationConfig) {
-        Database.connect(hikari(config))
-        transaction {
-            SchemaUtils.create(Users, Endpoints)
-        }
-    }
-
-    private fun hikari(config: ApplicationConfig): HikariDataSource {
+object DataSourceFactory {
+    fun create(config: ApplicationConfig): HikariDataSource {
         val driverClassName = config.property("hikari.driverClassName").getString()
         val jdbcUrl = config.property("hikari.jdbcUrl").getString()
         val username = config.property("hikari.username").getString()
