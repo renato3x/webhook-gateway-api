@@ -5,6 +5,7 @@ val postgresql_version: String by project
 val hikaricp_version: String by project
 val ktor_version: String by project
 val koin_version: String by project
+val flyway_version: String by project
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -42,6 +43,8 @@ dependencies {
     implementation("io.insert-koin:koin-ktor:$koin_version")
     implementation("io.ktor:ktor-server-auth-api-key:${ktor_version}")
     implementation("io.ktor:ktor-server-auth:${ktor_version}")
+    implementation("org.flywaydb:flyway-core:$flyway_version")
+    implementation("org.flywaydb:flyway-database-postgresql:$flyway_version")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }

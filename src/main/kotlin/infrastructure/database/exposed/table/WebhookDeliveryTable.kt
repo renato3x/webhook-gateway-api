@@ -8,7 +8,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 private const val STATUS_ENUM_COLUMN_LENGTH = 20
 
 object WebhookDeliveryTable : IntIdTable("webhook_deliveries") {
-    val endpoint = reference("endpoint_id", EndpointTable)
+    val endpointId = reference("endpoint_id", EndpointTable)
     val payload = text("payload")
     val attempts = integer("attempts").default(0)
     val nextRetryAt = timestamp("next_retry_at").nullable()

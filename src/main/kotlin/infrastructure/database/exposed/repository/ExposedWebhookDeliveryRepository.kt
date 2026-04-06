@@ -11,7 +11,7 @@ class ExposedWebhookDeliveryRepository : WebhookDeliveryRepository {
     override suspend fun save(webhookDelivery: WebhookDelivery): WebhookDelivery {
         val result = suspendTransaction {
             WebhookDeliveryTable.insertReturning {
-                it[endpoint] = webhookDelivery.endpointId
+                it[endpointId] = webhookDelivery.endpointId
                 it[payload] = webhookDelivery.payload
             }.single()
         }
@@ -21,7 +21,7 @@ class ExposedWebhookDeliveryRepository : WebhookDeliveryRepository {
 
     private fun ResultRow.toWebhookDelivery() = WebhookDelivery(
         id = this[WebhookDeliveryTable.id].value,
-        endpointId = this[WebhookDeliveryTable.endpoint].value,
+        endpointId = this[WebhookDeliveryTable.endpointId].value,
         payload = this[WebhookDeliveryTable.payload],
         attempts = this[WebhookDeliveryTable.attempts],
         nextRetryAt = this[WebhookDeliveryTable.nextRetryAt],

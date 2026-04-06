@@ -1,0 +1,5 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(16) UNIQUE NOT NULL,
+    api_key UUID UNIQUE NOT NULL
+)
