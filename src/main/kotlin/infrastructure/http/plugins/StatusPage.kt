@@ -68,11 +68,11 @@ fun Application.configureStatusPage() {
         exception<UnauthorizedEndpointAccessException> { call, cause ->
             val response = ErrorResponseDTO(
                 error = cause.message!!,
-                statusCode = HttpStatusCode.Unauthorized.value,
+                statusCode = HttpStatusCode.Forbidden.value,
             )
 
             call.respond(
-                HttpStatusCode.Unauthorized,
+                HttpStatusCode.Forbidden,
                 response,
             )
         }

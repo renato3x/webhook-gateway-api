@@ -17,7 +17,7 @@ class CreateWebhookDeliveryUseCaseImpl(
             ?: throw EndpointNotFoundException(command.endpointId)
 
         if (command.userId != endpoint.userId) {
-            throw UnauthorizedEndpointAccessException(command.endpointId)
+            throw UnauthorizedEndpointAccessException()
         }
 
         val webhookDelivery = WebhookDelivery(
