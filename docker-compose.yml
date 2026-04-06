@@ -1,10 +1,8 @@
 services:
   database:
     image: postgres:18
-    environment:
-      POSTGRES_USER: "renato3x"
-      POSTGRES_PASSWORD: "1069"
-      POSTGRES_DB: "webhook_gateway_app"
+    env_file:
+      - .env.postgres
     ports:
       - "5432:5432"
     volumes:
