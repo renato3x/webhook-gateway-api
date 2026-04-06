@@ -1,6 +1,8 @@
 package dev.renato3x.infrastructure.http.plugins
 
 import dev.renato3x.domain.exception.EndpointAlreadyExistsException
+import dev.renato3x.domain.exception.EndpointNotFoundException
+import dev.renato3x.domain.exception.UnauthorizedEndpointAccessException
 import dev.renato3x.domain.exception.UserNotFoundException
 import dev.renato3x.domain.exception.UsernameAlreadyExistsException
 import dev.renato3x.infrastructure.http.dto.ErrorResponseDTO
@@ -47,6 +49,30 @@ fun Application.configureStatusPage() {
 
             call.respond(
                 HttpStatusCode.NotFound,
+                response,
+            )
+        }
+
+        exception<EndpointNotFoundException> { call, cause ->
+            val response = ErrorResponseDTO(
+                error = cause.message!!,
+                statusCode = HttpStatusCode.NotFound.value,
+            )
+
+            call.respond(
+                HttpStatusCode.NotFound,
+                response,
+            )
+        }
+
+        exception<UnauthorizedEndpointAccessException> { call, cause ->
+            val response = ErrorResponseDTO(
+                error = cause.message!!,
+                statusCode = HttpStatusCode.Unauthorized.value,
+            )
+
+            call.respond(
+                HttpStatusCode.Unauthorized,
                 response,
             )
         }

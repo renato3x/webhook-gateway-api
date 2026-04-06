@@ -1,6 +1,7 @@
 package dev.renato3x.infrastructure.http.plugins
 
 import dev.renato3x.infrastructure.http.routes.endpointRoutes
+import dev.renato3x.infrastructure.http.routes.gatewayRoutes
 import dev.renato3x.infrastructure.http.routes.userRoutes
 import io.ktor.server.application.*
 import io.ktor.server.response.*
@@ -14,6 +15,7 @@ fun Application.configureRouting() {
             }
             userRoutes()
             endpointRoutes()
+            gatewayRoutes()
         }
     }
 }
