@@ -7,21 +7,21 @@ import dev.renato3x.infrastructure.database.exposed.table.EndpointTable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 
 class ExposedEndpointRepository : EndpointRepository {
     override suspend fun save(endpoint: Endpoint): Endpoint {
-        val id = suspendTransaction {
-            EndpointTable.insertAndGetId {
+        val result = suspendTransaction {
+            EndpointTable.insertReturning {
                 it[url] = endpoint.url.value
                 it[nickname] = endpoint.nickname
                 it[userId] = endpoint.userId
-            }
+            }.single()
         }
 
-        return endpoint.copy(id = id.value)
+        return result.toEndpoint()
     }
 
     override suspend fun findByUserIdAndUrl(

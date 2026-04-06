@@ -5,7 +5,7 @@ import dev.renato3x.domain.port.out.UserRepository
 import dev.renato3x.infrastructure.database.exposed.table.UserTable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import kotlin.uuid.ExperimentalUuidApi
@@ -14,14 +14,14 @@ import kotlin.uuid.Uuid
 @OptIn(ExperimentalUuidApi::class)
 class ExposedUserRepository : UserRepository {
     override suspend fun save(user: User): User {
-        val id = suspendTransaction {
-            UserTable.insertAndGetId {
+        val result = suspendTransaction {
+            UserTable.insertReturning {
                 it[username] = user.username
                 it[apiKey] = user.apiKey
-            }
+            }.single()
         }
 
-        return user.copy(id = id.value)
+        return result.toUser()
     }
 
     override suspend fun findByUsername(username: String): User? {
