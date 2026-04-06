@@ -1,7 +1,7 @@
 CREATE TABLE webhook_deliveries (
     id SERIAL PRIMARY KEY,
     endpoint_id INTEGER NOT NULL,
-    payload STRING NOT NULL,
+    payload TEXT NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 0,
     next_retry_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
