@@ -55,7 +55,8 @@ src/main/kotlin/
 ├── application/
 │   └── usecase/                    ← Use case implementations (Port IN)
 │       ├── CreateUserUseCaseImpl.kt
-│       └── CreateEndpointUseCaseImpl.kt
+│       ├── CreateEndpointUseCaseImpl.kt
+│       └── CreateWebhookDeliveryUseCaseImpl.kt
 ├── domain/
 │   ├── command/                    ← Intent objects passed to use cases
 │   ├── exception/                  ← Domain-specific exceptions
@@ -124,11 +125,14 @@ Koin is used for IoC. The module wires interfaces to their concrete implementati
 
 ```kotlin
 val appModule = module {
-    single<UserRepository>        { ExposedUserRepository() }
-    single<CreateUserUseCase>     { CreateUserUseCaseImpl(get()) }
+    single<UserRepository>               { ExposedUserRepository() }
+    single<CreateUserUseCase>            { CreateUserUseCaseImpl(get()) }
 
-    single<EndpointRepository>    { ExposedEndpointRepository() }
-    single<CreateEndpointUseCase> { CreateEndpointUseCaseImpl(get(), get()) }
+    single<EndpointRepository>           { ExposedEndpointRepository() }
+    single<CreateEndpointUseCase>        { CreateEndpointUseCaseImpl(get(), get()) }
+
+    single<WebhookDeliveryRepository>    { ExposedWebhookDeliveryRepository() }
+    single<CreateWebhookDeliveryUseCase> { CreateWebhookDeliveryUseCaseImpl(get(), get()) }
 }
 ```
 
@@ -181,6 +185,7 @@ Represents a queued webhook dispatch attempt.
 | `payload` | `String` | The raw JSON payload to be forwarded |
 | `attempts` | `Int` | Number of delivery attempts (starts at `0`) |
 | `nextRetryAt` | `Instant?` | Timestamp for the next retry (Exponential Backoff) |
+| `createdAt` | `Instant` | Timestamp of when the delivery was created (set automatically) |
 | `status` | `WebhookDeliveryStatus` | `PENDING`, `SUCCESS`, or `FAILED` |
 
 ---
@@ -284,6 +289,43 @@ Registers a trusted destination URL for the authenticated user.
 
 ---
 
+### `POST /v1/dispatch` 🔒
+Ingests a webhook payload for asynchronous delivery.
+
+> **Requires authentication.** Send the API key in the `X-API-Key` header.
+
+The endpoint immediately persists a `PENDING` `WebhookDelivery` record and returns `202 Accepted` without waiting for the actual HTTP delivery to the target URL.
+
+**Request Body:**
+```json
+{
+  "endpoint_id": 1,
+  "payload": { "event": "user.created", "data": { "id": 99 } }
+}
+```
+
+**Validation rules:**
+- `endpoint_id` must be greater than `0`.
+- `payload` must not be an empty JSON object (`{}`).
+
+**Response:** `202 Accepted` *(empty body)*
+
+**Business logic:**
+1. Looks up the endpoint by `endpoint_id`. If not found, returns `404 Not Found`.
+2. Verifies that the endpoint belongs to the authenticated user. If not, returns `403 Forbidden`.
+3. Creates a `WebhookDelivery` with `status = PENDING`, `attempts = 0`, and `next_retry_at = null`.
+4. Persists the delivery and returns `202 Accepted` immediately.
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing/invalid `X-API-Key` header or validation failed |
+| `403 Forbidden` | The `endpoint_id` does not belong to the authenticated user |
+| `404 Not Found` | No endpoint found with the given `endpoint_id` |
+
+---
+
 ## Authentication
 
 Protected routes use **API Key authentication** via the `ktor-server-auth-api-key` plugin.
@@ -325,6 +367,8 @@ All errors are handled globally by Ktor's **StatusPages** plugin and return a co
 | `UsernameAlreadyExistsException` | `409 Conflict` | Username is already taken |
 | `EndpointAlreadyExistsException` | `409 Conflict` | URL already registered for this user |
 | `UserNotFoundException` | `404 Not Found` | User lookup by ID failed |
+| `EndpointNotFoundException` | `404 Not Found` | Endpoint lookup by ID failed |
+| `UnauthorizedEndpointAccessException` | `403 Forbidden` | Endpoint does not belong to the authenticated user |
 | `RequestValidationException` | `400 Bad Request` | Request body failed validation rules |
 | `RequestException` | Configurable | Generic HTTP-layer error with custom status and details |
 | `Throwable` (fallback) | `500 Internal Server Error` | Any unhandled exception |
@@ -433,7 +477,6 @@ The server will start on `http://0.0.0.0:8080`. The database tables are created 
 
 The following features are specified in `SPEC.md` and are yet to be implemented:
 
-- **`POST /v1/dispatch`** — Ingest a webhook payload. Validates the `endpoint_id` belongs to the authenticated user, persists a `PENDING` `WebhookDelivery`, and returns `202 Accepted` immediately.
-- **Background Worker** — A Kotlin Coroutine (`launch(Dispatchers.IO)`) that polls the database every 10 seconds for `PENDING` deliveries whose `next_retry_at` has passed, then forwards them via HTTP POST.
+- **Background Worker** — A Kotlin Coroutine (`launch(Dispatchers.IO)`) that polls the database every 10 seconds for `PENDING` deliveries whose `next_retry_at` has passed, then forwards them via HTTP POST to the registered endpoint URL.
 - **Exponential Backoff Retry** — On failure, schedules the next retry as $NextRetry = CurrentTime + (2^{attempts}\ minutes)$, up to a maximum of **5 attempts** before marking the delivery as `FAILED`.
 - **Structured Logging** — Full lifecycle logs tracking each delivery from ingestion through every attempt to final success or failure.
