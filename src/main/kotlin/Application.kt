@@ -15,5 +15,6 @@ fun Application.module() {
     configureValidation()
     configureStatusPage()
     configureAuthentication()
+    configureWorkers()
     configureRouting()
 }

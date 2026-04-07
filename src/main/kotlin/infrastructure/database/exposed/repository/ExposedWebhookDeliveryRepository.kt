@@ -6,7 +6,12 @@ import dev.renato3x.domain.port.out.WebhookDeliveryRepository
 import dev.renato3x.infrastructure.database.exposed.table.WebhookDeliveryTable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
@@ -27,7 +32,13 @@ class ExposedWebhookDeliveryRepository : WebhookDeliveryRepository {
     override suspend fun findPending(): List<WebhookDelivery> {
         val result = suspendTransaction {
             WebhookDeliveryTable.selectAll()
-                .where { WebhookDeliveryTable.status eq WebhookDeliveryStatus.PENDING }
+                .where {
+                    (WebhookDeliveryTable.status eq WebhookDeliveryStatus.PENDING) and
+                            (
+                                (WebhookDeliveryTable.nextRetryAt lessEq CurrentTimestamp) or
+                                (WebhookDeliveryTable.nextRetryAt.isNull())
+                            )
+                }
                 .orderBy(WebhookDeliveryTable.createdAt, SortOrder.ASC)
                 .toList()
         }
@@ -37,7 +48,7 @@ class ExposedWebhookDeliveryRepository : WebhookDeliveryRepository {
 
     override suspend fun update(webhookDelivery: WebhookDelivery): WebhookDelivery {
         val result = suspendTransaction {
-            WebhookDeliveryTable.update({ WebhookDeliveryTable.id eq webhookDelivery.endpointId }) {
+            WebhookDeliveryTable.update({ WebhookDeliveryTable.id eq webhookDelivery.id }) {
                 it[endpointId] = webhookDelivery.endpointId
                 it[payload] = webhookDelivery.payload
                 it[attempts] = webhookDelivery.attempts
