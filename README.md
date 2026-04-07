@@ -14,6 +14,7 @@ A backend service built with **Kotlin** and **Ktor** designed to act as a reliab
 - [Value Objects](#value-objects)
 - [API Endpoints](#api-endpoints)
 - [Authentication](#authentication)
+- [Background Worker](#background-worker)
 - [Error Handling](#error-handling)
 - [Database](#database)
 - [Configuration](#configuration)
@@ -28,7 +29,7 @@ Instead of making a client wait for an HTTP call to a third-party service to com
 
 1. Receives the request and immediately persists it as a **PENDING** delivery.
 2. Returns `202 Accepted` to the caller right away.
-3. A background worker (not yet implemented) picks up the pending delivery and attempts to forward it to the target URL.
+3. A background worker picks up the pending delivery every minute and attempts to forward it to the target URL via HTTP POST.
 4. If the delivery fails, the system retries using an **Exponential Backoff** strategy for up to 5 attempts before marking it as **FAILED**.
 
 This follows the **Producer-Consumer** pattern, decoupling ingestion from execution entirely.
@@ -45,41 +46,51 @@ Infrastructure → Application → Domain
 
 - **Domain** knows nothing about the outside world. It holds entities, domain exceptions, commands (intent objects), value objects, and port interfaces (contracts).
 - **Application** implements the business logic via use cases. It only knows about the Domain layer — never about HTTP, databases, or frameworks.
-- **Infrastructure** is the outermost layer and handles all technical details: Ktor HTTP routes, API Key authentication, Exposed ORM, Koin DI wiring, HikariCP connection pooling, and DTOs.
+- **Infrastructure** is the outermost layer and handles all technical details: Ktor HTTP routes, API Key authentication, Exposed ORM, Flyway migrations, Koin DI wiring, HikariCP connection pooling, DTOs, and the HTTP client for outgoing requests.
 
 The `Application.kt` file acts as the **Composition Root**, where all concrete implementations are wired together through dependency injection.
 
 ```
 src/main/kotlin/
-├── Application.kt                  ← Composition Root / Ktor entry point
+├── Application.kt                     ← Composition Root / Ktor entry point
 ├── application/
-│   └── usecase/                    ← Use case implementations (Port IN)
+│   └── usecase/                       ← Use case implementations (Port IN)
 │       ├── CreateUserUseCaseImpl.kt
 │       ├── CreateEndpointUseCaseImpl.kt
-│       └── CreateWebhookDeliveryUseCaseImpl.kt
+│       ├── CreateWebhookDeliveryUseCaseImpl.kt
+│       └── DispatchWebhookUseCaseImpl.kt
 ├── domain/
-│   ├── command/                    ← Intent objects passed to use cases
-│   ├── exception/                  ← Domain-specific exceptions
-│   ├── model/                      ← Core business entities
-│   ├── value/                      ← Domain value objects (e.g., Url)
+│   ├── command/                       ← Intent objects passed to use cases
+│   ├── dto/
+│   │   └── HttpResponse.kt            ← Shared DTO for HTTP responses
+│   ├── exception/                     ← Domain-specific exceptions
+│   ├── model/                         ← Core business entities
+│   ├── value/                         ← Domain value objects (e.g., Url)
 │   └── port/
-│       ├── in/                     ← Driving ports (use case interfaces)
-│       └── out/                    ← Driven ports (repository/gateway interfaces)
+│       ├── in/                        ← Driving ports (use case interfaces)
+│       └── out/                       ← Driven ports (repository/gateway interfaces)
+│           ├── UserRepository.kt
+│           ├── EndpointRepository.kt
+│           ├── WebhookDeliveryRepository.kt
+│           └── HttpRequestService.kt  ← Port for outgoing HTTP requests
 └── infrastructure/
     ├── database/
-    │   ├── DataSourceFactory.kt    ← HikariCP DataSource builder
+    │   ├── DataSourceFactory.kt       ← HikariCP DataSource builder
+    │   ├── FlywaySetup.kt             ← Flyway migration runner
     │   └── exposed/
     │       ├── ExposedDatabaseSetup.kt
-    │       ├── repository/         ← Port OUT implementations (Exposed ORM)
-    │       └── table/              ← Exposed table definitions
+    │       ├── repository/            ← Port OUT implementations (Exposed ORM)
+    │       └── table/                 ← Exposed table definitions
     ├── di/
-    │   └── AppModule.kt            ← Koin dependency injection module
+    │   └── AppModule.kt               ← Koin dependency injection module
     └── http/
-        ├── dto/                    ← Request/Response DTOs + Validatable interface
-        ├── exception/              ← HTTP-layer exceptions
-        ├── plugins/                ← Ktor plugin configurations (including auth)
-        ├── principal/              ← Ktor principal (UserPrincipal)
-        └── routes/                 ← Ktor route handlers
+        ├── dto/                       ← Request/Response DTOs + Validatable interface
+        ├── exception/                 ← HTTP-layer exceptions
+        ├── plugins/                   ← Ktor plugin configurations (including auth and worker)
+        ├── principal/                 ← Ktor principal (UserPrincipal)
+        ├── routes/                    ← Ktor route handlers
+        └── service/
+            └── KtorHttpRequestService.kt  ← HttpRequestService implementation (Ktor CIO client)
 ```
 
 ---
@@ -91,13 +102,16 @@ src/main/kotlin/
 | Kotlin | 2.3.0 | Primary language |
 | JVM | 21 | Runtime |
 | Ktor (Netty) | 3.4.2 | HTTP server framework |
+| Ktor CIO Client | 3.4.2 | HTTP client for outgoing webhook requests |
 | Exposed | 1.2.0 | Kotlin ORM for SQL |
 | PostgreSQL Driver | 42.7.8 | Database driver |
 | HikariCP | 6.3.3 | JDBC connection pool |
+| Flyway | 12.3.0 | Database schema migration |
 | Koin | 4.2.0 | Dependency injection |
 | kotlinx.serialization | 2.3.0 | JSON serialization |
 | Logback | 1.4.14 | Structured logging |
 | ktor-server-auth-api-key | 3.4.2 | API Key authentication plugin |
+| MockK | 1.14.9 | Mocking library for tests |
 
 ---
 
@@ -110,12 +124,13 @@ The `Application.module()` function is the Ktor entry point and bootstraps all p
 ```kotlin
 fun Application.module() {
     configureDI()             // 1. Koin dependency injection
-    configureDatabases()      // 2. HikariCP + Exposed ORM + schema creation
+    configureDatabases()      // 2. HikariCP + Flyway migrations + Exposed ORM
     configureSerialization()  // 3. JSON with snake_case naming strategy
     configureValidation()     // 4. Request body validation
     configureStatusPage()     // 5. Global exception → HTTP response mapping
     configureAuthentication() // 6. API Key authentication middleware
-    configureRouting()        // 7. HTTP routes registration
+    configureWorkers()        // 7. Background worker coroutine
+    configureRouting()        // 8. HTTP routes registration
 }
 ```
 
@@ -133,6 +148,9 @@ val appModule = module {
 
     single<WebhookDeliveryRepository>    { ExposedWebhookDeliveryRepository() }
     single<CreateWebhookDeliveryUseCase> { CreateWebhookDeliveryUseCaseImpl(get(), get()) }
+
+    single<HttpRequestService>           { KtorHttpRequestService() }
+    single<DispatchWebhookUseCase>       { DispatchWebhookUseCaseImpl(get(), get(), get()) }
 }
 ```
 
@@ -347,6 +365,60 @@ The `UserPrincipal` carries the full `User` domain object, making it available d
 
 ---
 
+## Background Worker
+
+The background worker is implemented as a Kotlin Coroutine launched on `Dispatchers.IO` when the application starts. It polls the database every **1 minute** for `PENDING` webhook deliveries and attempts to dispatch them.
+
+### Worker lifecycle
+
+```kotlin
+monitor.subscribe(ApplicationStarted) {
+    launch(Dispatchers.IO) {
+        while (true) {
+            dispatchWebhookUseCase.execute()
+            delay(1.minutes)
+        }
+    }
+}
+```
+
+### Dispatch logic (`DispatchWebhookUseCaseImpl`)
+
+For each polling cycle:
+
+1. Queries all `PENDING` deliveries from the database.
+2. For each delivery:
+   - If `attempts == 5` (max retries reached): marks the delivery as `FAILED`.
+   - Otherwise: sends an HTTP POST request to the registered endpoint URL with the stored payload using `KtorHttpRequestService` (Ktor CIO client).
+3. **On success** (HTTP 2xx): marks the delivery as `SUCCESS`.
+4. **On failure** (HTTP 4xx/5xx or timeout):
+   - Increments `attempts`.
+   - Schedules the next retry using **Exponential Backoff**: $NextRetry = CurrentTime + (2^{attempts}\ minutes)$.
+
+### Retry table
+
+| Attempt | Delay before next retry |
+|---|---|
+| 1st failure | 1 minute |
+| 2nd failure | 2 minutes |
+| 3rd failure | 4 minutes |
+| 4th failure | 8 minutes |
+| 5th failure | marked as `FAILED` |
+
+### `HttpRequestService` port
+
+The domain defines an `HttpRequestService` port (driven port) that abstracts outgoing HTTP calls:
+
+```kotlin
+interface HttpRequestService {
+    suspend fun post(url: String, body: Any, headers: Map<String, String> = emptyMap()): HttpResponse
+}
+```
+
+The infrastructure provides `KtorHttpRequestService` as the concrete implementation using the Ktor CIO HTTP client.
+
+---
+
 ## Error Handling
 
 All errors are handled globally by Ktor's **StatusPages** plugin and return a consistent JSON structure:
@@ -377,19 +449,27 @@ All errors are handled globally by Ktor's **StatusPages** plugin and return a co
 
 ## Database
 
-The project uses **PostgreSQL** as its database, managed through **HikariCP** (connection pooling) and **Exposed** (ORM).
+The project uses **PostgreSQL** as its database, managed through **HikariCP** (connection pooling), **Flyway** (schema migrations), and **Exposed** (ORM).
+
+### Schema migrations
+
+Database schema is managed by **Flyway** and applied automatically on startup. Migration scripts live in `src/main/resources/db/migration/`:
+
+| Migration | Description |
+|---|---|
+| `V1__create_users_table.sql` | Creates the `users` table with `id`, `username` (unique), and `api_key` (unique UUID) |
+| `V2__create_endpoints_table.sql` | Creates the `endpoints` table with a cascade-delete FK to `users` |
+| `V3__create_webhook_deliveries_table.sql` | Creates the `webhook_deliveries` table with status tracking and a cascade-delete FK to `endpoints` |
 
 ### Tables
 
-Tables are automatically created on startup via `ExposedDatabaseSetup`:
-
 - **`users`** — stores users with unique `username` and `api_key`.
 - **`endpoints`** — stores allowed destination URLs with a cascade-delete FK to `users`.
-- **`webhook_deliveries`** — stores queued delivery jobs with status tracking.
+- **`webhook_deliveries`** — stores queued delivery jobs with status, attempt count, and retry scheduling.
 
 ### Running the Database locally
 
-A `docker-compose.yml` is provided for local development:
+A `docker-compose.yml` is provided for local development. Database credentials are loaded from an `.env.postgres` file:
 
 ```bash
 docker compose up -d
@@ -397,9 +477,7 @@ docker compose up -d
 
 This starts a **PostgreSQL 18** container with:
 - **Host:** `localhost:5432`
-- **Database:** `webhook_gateway_app`
-- **Username:** `renato3x`
-- **Password:** `1069`
+- **Database:** configured via `.env.postgres`
 
 Data is persisted via a named Docker volume (`database_vm`).
 
@@ -451,8 +529,8 @@ docker compose up -d
 **2. Set the required environment variables:**
 ```bash
 export DATABASE_URL=jdbc:postgresql://localhost:5432/webhook_gateway_app
-export DATABASE_USER=renato3x
-export DATABASE_PASSWORD=1069
+export DATABASE_USER=your_db_user
+export DATABASE_PASSWORD=your_db_password
 ```
 
 **3. Run the server:**
@@ -460,7 +538,7 @@ export DATABASE_PASSWORD=1069
 ./gradlew run
 ```
 
-The server will start on `http://0.0.0.0:8080`. The database tables are created automatically on the first run.
+The server will start on `http://0.0.0.0:8080`. Flyway will apply any pending migrations automatically on the first run.
 
 ### Other Gradle Tasks
 
@@ -475,8 +553,4 @@ The server will start on `http://0.0.0.0:8080`. The database tables are created 
 
 ## Planned Features
 
-The following features are specified in `SPEC.md` and are yet to be implemented:
-
-- **Background Worker** — A Kotlin Coroutine (`launch(Dispatchers.IO)`) that polls the database every 10 seconds for `PENDING` deliveries whose `next_retry_at` has passed, then forwards them via HTTP POST to the registered endpoint URL.
-- **Exponential Backoff Retry** — On failure, schedules the next retry as $NextRetry = CurrentTime + (2^{attempts}\ minutes)$, up to a maximum of **5 attempts** before marking the delivery as `FAILED`.
-- **Structured Logging** — Full lifecycle logs tracking each delivery from ingestion through every attempt to final success or failure.
+- **Structured Logging** — Full lifecycle logs tracking each delivery from ingestion through every attempt to final success or failure, replacing the current `println` statements in `DispatchWebhookUseCaseImpl`.
