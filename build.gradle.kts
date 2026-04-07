@@ -6,6 +6,7 @@ val hikaricp_version: String by project
 val ktor_version: String by project
 val koin_version: String by project
 val flyway_version: String by project
+val mockk_version: String by project
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -46,5 +47,6 @@ dependencies {
     implementation("org.flywaydb:flyway-core:$flyway_version")
     implementation("org.flywaydb:flyway-database-postgresql:$flyway_version")
     testImplementation("io.ktor:ktor-server-test-host")
+    testImplementation("io.mockk:mockk:$mockk_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
