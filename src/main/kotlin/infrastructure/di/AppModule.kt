@@ -12,6 +12,8 @@ import dev.renato3x.domain.port.out.WebhookDeliveryRepository
 import dev.renato3x.infrastructure.database.exposed.repository.ExposedEndpointRepository
 import dev.renato3x.infrastructure.database.exposed.repository.ExposedUserRepository
 import dev.renato3x.infrastructure.database.exposed.repository.ExposedWebhookDeliveryRepository
+import domain.port.out.HttpRequestService
+import infrastructure.http.service.KtorHttpRequestService
 import org.koin.dsl.module
 
 val appModule = module {
@@ -25,4 +27,6 @@ val appModule = module {
     single<CreateWebhookDeliveryUseCase> {
         CreateWebhookDeliveryUseCaseImpl(get(), get())
     }
+
+    single<HttpRequestService> { KtorHttpRequestService() }
 }
