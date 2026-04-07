@@ -1,7 +1,7 @@
-package infrastructure.http.service
+package dev.renato3x.infrastructure.http.service
 
-import domain.dto.HttpResponse
-import domain.port.out.HttpRequestService
+import dev.renato3x.domain.dto.HttpResponse
+import dev.renato3x.domain.port.out.HttpRequestService
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.post

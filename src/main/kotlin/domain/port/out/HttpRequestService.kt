@@ -1,6 +1,6 @@
-package domain.port.out
+package dev.renato3x.domain.port.out
 
-import domain.dto.HttpResponse
+import dev.renato3x.domain.dto.HttpResponse
 
 interface HttpRequestService {
     suspend fun post(
