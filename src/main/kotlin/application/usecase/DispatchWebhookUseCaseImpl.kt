@@ -1,7 +1,7 @@
 package dev.renato3x.application.usecase
 
 import dev.renato3x.domain.command.DispatchWebhookCommand
-import dev.renato3x.domain.dto.DispatchWebhookResult
+import dev.renato3x.domain.outcome.DispatchWebhookResult
 import dev.renato3x.domain.model.WebhookDeliveryStatus
 import dev.renato3x.domain.port.`in`.DispatchWebhookUseCase
 import dev.renato3x.domain.port.out.EndpointRepository

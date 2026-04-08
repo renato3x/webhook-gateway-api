@@ -1,7 +1,7 @@
 package dev.renato3x.infrastructure.http
 
 import dev.renato3x.domain.command.DispatchWebhookCommand
-import dev.renato3x.domain.dto.DispatchWebhookResult
+import dev.renato3x.domain.outcome.DispatchWebhookResult
 import dev.renato3x.domain.port.out.WebhookDispatcher
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
