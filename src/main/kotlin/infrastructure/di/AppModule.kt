@@ -4,10 +4,12 @@ import dev.renato3x.application.usecase.CreateEndpointUseCaseImpl
 import dev.renato3x.application.usecase.CreateUserUseCaseImpl
 import dev.renato3x.application.usecase.CreateWebhookDeliveryUseCaseImpl
 import dev.renato3x.application.usecase.DispatchWebhookUseCaseImpl
+import dev.renato3x.application.usecase.GetUserDataUseCaseImpl
 import dev.renato3x.domain.port.`in`.CreateEndpointUseCase
 import dev.renato3x.domain.port.`in`.CreateUserUseCase
 import dev.renato3x.domain.port.`in`.CreateWebhookDeliveryUseCase
 import dev.renato3x.domain.port.`in`.DispatchWebhookUseCase
+import dev.renato3x.domain.port.`in`.GetUserDataUseCase
 import dev.renato3x.domain.port.out.EndpointRepository
 import dev.renato3x.domain.port.out.UserRepository
 import dev.renato3x.domain.port.out.WebhookDeliveryRepository
@@ -34,4 +36,6 @@ val appModule = module {
     single<DispatchWebhookUseCase> {
         DispatchWebhookUseCaseImpl(get(), get(), get())
     }
+
+    single<GetUserDataUseCase> { GetUserDataUseCaseImpl(get(), get()) }
 }

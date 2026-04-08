@@ -49,6 +49,16 @@ class ExposedEndpointRepository : EndpointRepository {
         return endpoint?.toEndpoint()
     }
 
+    override suspend fun findAllByUserId(userId: Int): List<Endpoint> {
+        val endpoints = suspendTransaction {
+            EndpointTable.selectAll()
+                .where { EndpointTable.userId eq userId }
+                .map { it.toEndpoint() }
+        }
+
+        return endpoints
+    }
+
     private fun ResultRow.toEndpoint() = Endpoint(
         id = this[EndpointTable.id].value,
         url = Url(this[EndpointTable.url]),

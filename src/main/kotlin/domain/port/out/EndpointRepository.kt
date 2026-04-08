@@ -7,4 +7,5 @@ interface EndpointRepository {
     suspend fun save(endpoint: Endpoint): Endpoint
     suspend fun findByUserIdAndUrl(userId: Int, url: Url): Endpoint?
     suspend fun findById(id: Int): Endpoint?
+    suspend fun findAllByUserId(userId: Int): List<Endpoint>
 }
