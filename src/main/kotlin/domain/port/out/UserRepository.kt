@@ -10,4 +10,5 @@ interface UserRepository {
     suspend fun findByUsername(username: String): User?
     suspend fun findById(id: Int): User?
     suspend fun findByApiKey(apiKey: Uuid): User?
+    suspend fun findByEmail(email: String): User?
 }

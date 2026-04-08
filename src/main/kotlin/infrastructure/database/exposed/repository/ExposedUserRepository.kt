@@ -16,6 +16,7 @@ class ExposedUserRepository : UserRepository {
     override suspend fun save(user: User): User {
         val result = suspendTransaction {
             UserTable.insertReturning {
+                it[email] = user.email
                 it[username] = user.username
                 it[apiKey] = user.apiKey
             }.single()
@@ -54,9 +55,20 @@ class ExposedUserRepository : UserRepository {
         return result?.toUser()
     }
 
+    override suspend fun findByEmail(email: String): User? {
+        val result = suspendTransaction {
+            UserTable.selectAll().where {
+                UserTable.email eq email
+            }.singleOrNull()
+        }
+
+        return result?.toUser()
+    }
+
     private fun ResultRow.toUser() = User(
         id = this[UserTable.id].value,
         username = this[UserTable.username],
-        apiKey = this[UserTable.apiKey]
+        apiKey = this[UserTable.apiKey],
+        email = this[UserTable.email],
     )
 }

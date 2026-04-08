@@ -7,4 +7,5 @@ import kotlin.uuid.ExperimentalUuidApi
 object UserTable : IntIdTable("users") {
     val username = varchar("username", 16).uniqueIndex()
     val apiKey = uuid("api_key").uniqueIndex()
+    val email = varchar("email", 255).uniqueIndex().nullable()
 }

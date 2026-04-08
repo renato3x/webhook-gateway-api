@@ -19,7 +19,7 @@ fun Route.userRoutes() {
         post {
             val dto = call.receive<CreateUserRequestDTO>()
 
-            val command = CreateUserCommand(dto.username)
+            val command = CreateUserCommand(dto.username, dto.email)
             val user = createUserUseCase.execute(command)
 
             val response = CreateUserResponseDTO(user.apiKey)

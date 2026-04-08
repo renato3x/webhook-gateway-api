@@ -1,3 +1,6 @@
 package dev.renato3x.domain.command
 
-data class CreateUserCommand(val username: String)
+data class CreateUserCommand(
+    val username: String,
+    val email: String?,
+)

@@ -1,5 +1,6 @@
 package dev.renato3x.infrastructure.http.plugins
 
+import dev.renato3x.domain.exception.EmailAlreadyExistsException
 import dev.renato3x.domain.exception.EndpointAlreadyExistsException
 import dev.renato3x.domain.exception.EndpointNotFoundException
 import dev.renato3x.domain.exception.UnauthorizedEndpointAccessException
@@ -30,6 +31,18 @@ fun Application.configureStatusPage() {
         }
 
         exception<EndpointAlreadyExistsException> { call, cause ->
+            val response = ErrorResponseDTO(
+                error = cause.message!!,
+                statusCode = HttpStatusCode.Conflict.value,
+            )
+
+            call.respond(
+                HttpStatusCode.Conflict,
+                response,
+            )
+        }
+
+        exception<EmailAlreadyExistsException> { call, cause ->
             val response = ErrorResponseDTO(
                 error = cause.message!!,
                 statusCode = HttpStatusCode.Conflict.value,

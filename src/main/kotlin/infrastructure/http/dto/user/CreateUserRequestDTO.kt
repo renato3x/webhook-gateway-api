@@ -4,7 +4,10 @@ import dev.renato3x.infrastructure.http.dto.Validatable
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class CreateUserRequestDTO(val username: String = "") : Validatable {
+data class CreateUserRequestDTO(
+    val username: String = "",
+    val email: String? = null,
+) : Validatable {
     override fun validate(): List<String> {
         val errors = mutableListOf<String>()
 

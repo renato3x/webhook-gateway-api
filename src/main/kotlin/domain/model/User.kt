@@ -8,4 +8,5 @@ data class User(
     val id: Int? = null,
     val username: String,
     val apiKey: Uuid,
+    val email: String? = null,
 )
